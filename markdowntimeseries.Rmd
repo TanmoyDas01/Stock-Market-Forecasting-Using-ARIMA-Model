@@ -1,0 +1,107 @@
+---
+title: "Time Series Comparison"
+author: "Tanmoy Das - 2248117"
+date: '2023-01-14'
+output: word_document
+---
+
+# Title
+Comparison of different methods for forecasting stock market
+
+# Installing necessaary packages
+```{r}
+library(readr)
+library(ggplot2)
+library(forecast)
+library(fpp2)
+library(TTR)
+library(dplyr)
+library(xts)
+library(tidyverse)
+library(quantmod)
+library(tseries)
+library(rugarch)
+library(prophet)
+library(tsfknn)
+```
+
+# Reading the data
+```{r}
+rawdata = read.csv("C:/Users/TANMOY/Desktop/Datasets/Mastercard_stock_history.csv", header = TRUE, row.names = "Date")
+glimpse(rawdata)
+tail(index(rawdata))
+chartSeries(rawdata)
+```
+
+# Splitting the data
+```{r}
+N = length (rawdata$Close)
+n = 0.8*N
+
+train = rawdata$Close[1:n]
+test = rawdata$Close[(n+1):N]
+```
+
+# ARIMA Model
+## Augmented Dickey-Fuller test for checking stationarity
+```{r}
+print(adf.test(train))
+```
+
+## ACF & PACF for the train data
+```{r}
+par(mfrow = c(1,2))
+acf(train)
+pacf(train)
+par(mfrow=c(1,1))
+```
+# Decomposition
+```{r}
+train.ts = ts(train, start = c(2006,5), end = c(2021,10), frequency = 3)
+plot(decompose(train.ts))
+```
+
+
+# Fitting the model
+
+```{r}
+modelfit = auto.arima(train, lambda = "auto")
+summary(modelfit)
+```
+## Diagonistics on residuals
+```{r}
+plot(resid(modelfit),ylab="Residuals",main="Residuals(Arima(1,1,1)) vs. Time")
+
+
+# Histogram of Residuals & Normality Assumption
+hist(resid(modelfit),freq=F,ylim=c(0,10),main="Histogram of Residuals")
+e=resid(modelfit)
+curve(dnorm(x, mean=mean(e), sd=sd(e)), add=TRUE, col="red")
+box()
+
+tsdiag(modelfit)
+
+Box.test(modelfit$residuals, lag= 2, type="Ljung-Box")
+Box.test(modelfit$residuals, type="Ljung-Box")
+```
+## Plotting the model
+```{r}
+plot(as.ts(train))
+lines(modelfit$fitted,col="red")
+```
+
+# Predicting the close values for test data and plotting them
+```{r}
+predlen= length(test)
+trainarima_fit <- forecast(modelfit, h= predlen)
+
+plot(trainarima_fit)
+head(trainarima_fit$mean)
+```
+# Plotting mean predicted  values vs real data
+```{r}
+meanvalues<- as.vector(trainarima_fit$mean)
+precios <- as.vector(test)
+plot(meanvalues, type = "l",col="red")
+lines(precios, type = "l")
+```
